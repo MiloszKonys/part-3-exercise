@@ -73,12 +73,12 @@ app.get("/info", (req, res, next) => {
     });
 });
 
-const generateId = () => {
+/*const generateId = () => {
   const maxId = persons.length > 0
     ? Math.max(...persons.map(n => n.id))
     : 0
   return maxId + 1
-}
+}*/
 
 app.post('/api/persons', (request, response) => {
   const body = request.body
@@ -93,7 +93,7 @@ app.post('/api/persons', (request, response) => {
   const person = new Person({
     name: body.name,
     number: body.number,
-    id: generateId(),
+    //id: generateId(),
   })
 
   const duplicateName = persons.find(p => p.name === body.name);
