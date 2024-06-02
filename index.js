@@ -9,7 +9,6 @@ app.use(cors());
 app.use(express.static('dist'))
 const Person = require('./models/person')
 
-
 morgan.token('req-body',(req)=>{
   if(req.method==='POST'){
     return JSON.stringify(req.body);
@@ -22,32 +21,6 @@ app.use(
     ":method :url :status :res[content-length] - :response-time ms :req-body"
   )
 );
-
-/*let persons = [
-  { 
-    "id": 1,
-    "name": "Arto Hellas", 
-    "number": "040-123456"
-  },
-  { 
-    "id": 2,
-    "name": "Ada Lovelace", 
-    "number": "39-44-5323523"
-  },
-  { 
-    "id": 3,
-    "name": "Dan Abramov", 
-    "number": "12-43-234345"
-  },
-  { 
-    "id": 4,
-    "name": "Mary Poppendieck", 
-    "number": "39-23-6423122"
-  }
-]*/
-
-
-app.use(express.json())
 
 app.get('/', (request, response) => {
   response.send('<h1>Hello World!</h1>')
@@ -73,68 +46,49 @@ app.get("/info", (req, res, next) => {
     });
 });
 
-/*const generateId = () => {
-  const maxId = persons.length > 0
-    ? Math.max(...persons.map(n => n.id))
-    : 0
-  return maxId + 1
-}*/
-
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
   const body = request.body
 
-  if (!body.number) {
+  if (!body.name || !body.number) {
     return response.status(400).json({ 
       error: 'name or number missing' 
     })
   }
-  
 
-  const person = new Person({
-    name: body.name,
-    number: body.number,
-    //id: generateId(),
-  })
+  // Check for duplicate name in the database
+  Person.findOne({ name: body.name }).then(existingPerson => {
+    if (existingPerson) {
+      return response.status(400).json({
+        error: 'Name must be unique'
+      })
+    } else {
+      const person = new Person({
+        name: body.name,
+        number: body.number,
+      })
 
-  const duplicateName = persons.find(p => p.name === body.name);
-  if (duplicateName) {
-    return response.status(400).json({
-      error: 'Name must be unique'
-    })
-  }
-
-
-  person.save().then(savedPerson => {
-    response.json(savedPerson)
-  })
-  /*persons = persons.concat(person)
-  response.json(person)*/
+      person.save().then(savedPerson => {
+        response.json(savedPerson)
+      }).catch(error => next(error))
+    }
+  }).catch(error => next(error))
 })
 
-/*app.get('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
-  const person = persons.find(person => person.id === id)
-  if (person) {
-    response.json(person)
-  } else {
-    console.log('x')
-    response.status(404).end()
-  }
-})*/
-app.get('/api/persons/:id', (request, response) => {
+app.get('/api/persons/:id', (request, response, next) => {
   Person.findById(request.params.id).then(person => {
-    response.json(person)
-  })
+    if (person) {
+      response.json(person)
+    } else {
+      response.status(404).end()
+    }
+  }).catch(error => next(error))
 })
 
-app.delete('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
-  persons = persons.filter(person => person.id !== id)
-
-  response.status(204).end()
+app.delete('/api/persons/:id', (request, response, next) => {
+  Person.findByIdAndRemove(request.params.id).then(result => {
+    response.status(204).end()
+  }).catch(error => next(error))
 })
-
-
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
