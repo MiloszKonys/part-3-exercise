@@ -1,4 +1,5 @@
 const express = require('express')
+require('dotenv').config()
 const app = express()
 const morgan = require('morgan')
 const cors = require('cors')
@@ -6,6 +7,7 @@ app.use(express.json());
 app.use(morgan("tiny"));
 app.use(cors());
 app.use(express.static('dist'))
+const Person = require('./models/person')
 
 
 morgan.token('req-body',(req)=>{
@@ -21,7 +23,7 @@ app.use(
   )
 );
 
-let persons = [
+/*let persons = [
   { 
     "id": 1,
     "name": "Arto Hellas", 
@@ -42,14 +44,8 @@ let persons = [
     "name": "Mary Poppendieck", 
     "number": "39-23-6423122"
   }
-]
+]*/
 
-
-function countPersons(persons) {
-  return persons.length;
-}
-
-const count = countPersons(persons);
 
 app.use(express.json())
 
@@ -58,15 +54,24 @@ app.get('/', (request, response) => {
 })
 
 app.get('/api/persons', (request, response) => {
-  response.json(persons)
+  Person.find({}).then(persons => {
+    response.json(persons)
+  })
 })
 
-app.get('/info', (request, response, next) => {
-  const message =
-  `<p>Phonebook has info for ${count} people</p>` +
-  `<p>${new Date()}</p>`;
-    response.send(message);
-})
+app.get("/info", (req, res, next) => {
+  Person.estimatedDocumentCount({})
+    .then((count) => {
+      const message =
+        `<p>Phonebook has info for ${count} people</p>` +
+        `<p>${new Date()}</p>`;
+      res.send(message);
+    })
+    .catch((err) => {
+      console.error(err);
+      next(err);
+    });
+});
 
 const generateId = () => {
   const maxId = persons.length > 0
@@ -85,11 +90,11 @@ app.post('/api/persons', (request, response) => {
   }
   
 
-  const person = {
+  const person = new Person({
     name: body.name,
     number: body.number,
     id: generateId(),
-  }
+  })
 
   const duplicateName = persons.find(p => p.name === body.name);
   if (duplicateName) {
@@ -99,12 +104,14 @@ app.post('/api/persons', (request, response) => {
   }
 
 
-  persons = persons.concat(person)
-
-  response.json(person)
+  person.save().then(savedPerson => {
+    response.json(savedPerson)
+  })
+  /*persons = persons.concat(person)
+  response.json(person)*/
 })
 
-app.get('/api/persons/:id', (request, response) => {
+/*app.get('/api/persons/:id', (request, response) => {
   const id = Number(request.params.id)
   const person = persons.find(person => person.id === id)
   if (person) {
@@ -113,6 +120,11 @@ app.get('/api/persons/:id', (request, response) => {
     console.log('x')
     response.status(404).end()
   }
+})*/
+app.get('/api/persons/:id', (request, response) => {
+  Person.findById(request.params.id).then(person => {
+    response.json(person)
+  })
 })
 
 app.delete('/api/persons/:id', (request, response) => {
